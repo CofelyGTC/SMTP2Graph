@@ -24,7 +24,9 @@ export class SMTPServer
 
     constructor(queue: MailQueue)
     {
+        log("info", "Step3")
         this.#queue = queue;
+        log("info", "Step4")
         this.#server = new NodeSMTP({
             onConnect: this.#onConnect,
             onAuth: this.#onAuth,

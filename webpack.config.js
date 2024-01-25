@@ -41,4 +41,9 @@ module.exports = (env, argv) => ({
         entrypoints: false,
         warnings: false,
     },
+
+        externals: {
+            'fsevents': 'require("fsevents")'
+        },
+    
 });
