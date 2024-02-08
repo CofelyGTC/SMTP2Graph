@@ -8,7 +8,7 @@
 # receive = Only run SMTP server and place received emails in queue (do not send them)
 # send = Only send items from the queue folder, but do not run the SMTP server to accept emails
 mode: full
-
+proxyUrl: test.cofelygtc.com
 # Required (in 'full' and 'send' mode): App. registration information
 send:
   appReg:

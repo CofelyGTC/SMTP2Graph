@@ -61,10 +61,13 @@ export class MailQueue
         log('verbose', `File "${filename}" appeared in the queue`);
         
         try {
+            console.log('Mail Queue Step 1')
             await Mailer.sendEml(filePath);
+            console.log('Mail Queue Step 2')
             this.remove(filePath);
             this.#removeFromRetryQueue(filename);
         } catch(error) {
+            console.log('Mail Queue Step 3')
             log('error', `Failed to send message "${filename}"`, {error, filename});
             if(!(error instanceof UnrecoverableError))
                 this.#addToRetryQueue(filename);

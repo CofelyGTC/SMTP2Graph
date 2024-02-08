@@ -7,8 +7,14 @@ import addressparser from 'nodemailer/lib/addressparser';
 import { ConfidentialClientApplication } from '@azure/msal-node';
 import { Config } from './Config';
 import { UnrecoverableError } from './Constants';
+import { prefixedLog } from './Logger';
+import https from 'https';
+import { proxyClient } from './ProxyClient';
+
 
 export class MailboxAccessDenied extends UnrecoverableError { }
+
+const log = prefixedLog('Mailer');
 
 export class Mailer
 {
@@ -26,7 +32,11 @@ export class Mailer
                 thumbprint: Config.clientCertificateThumbprint,
                 privateKey: Config.clientCertificateKey!,
             }:undefined,*/
+           
         },
+        system: {
+            networkClient: proxyClient
+        }
     }):undefined;
 
     static async sendEml(filePath: string)
@@ -43,19 +53,36 @@ export class Mailer
 
             // Fetch an accesstoken if needed
             const token = await this.#aquireToken();
+            console.log("Step 1")
+            console.log(token)
+            console.log("Step 2")
 
             // Send the message
             const readStream = fs.createReadStream(filePath);
             try {
+                //const proxy = process.env.http_proxy
+                log('info', "Get Env Variable")
+                
+                //log('info', proxy.toString())
                 await this.#retryableRequest({
                     method: 'post',
                     url: `https://graph.microsoft.com/v1.0/users/${sender}/sendMail`,
                     data: readStream.pipe(new Base64Encode()),
+                    proxy: {
+                        protocol: 'https',
+                        host: '18.135.133.116',
+                        port: 3128
+                    },
+                    httpsAgent: new https.Agent({
+                        rejectUnauthorized: false,
+                      }),
                     headers: {
                         Authorization: `Bearer ${token}`,
                         'Content-Type': 'text/plain',
                         'User-Agent': `SMPT2Graph/${VERSION}`,
                     },
+                   
+
                 });
             } catch(error: any) {
                 if('response' in error && (error as AxiosError).response?.data)
@@ -82,8 +109,11 @@ export class Mailer
     /** Automatically retry a request when it's being throttled by the Graph API */
     static async #retryableRequest<RequestData = any, ReponseData = any>(request: AxiosRequestConfig<RequestData>): Promise<AxiosResponse<RequestData, ReponseData>>
     {
+        
         const retryLimit = 3;
+        
         let response: AxiosResponse<RequestData, ReponseData>|undefined;
+        console.log(response)
         let retryCount = 0;
         let lastError: Error|undefined;
         let wait = 200;
@@ -110,10 +140,13 @@ export class Mailer
                 }
 
                 try {
+                    
                     response = await axios(request);
+                    //console.log(response)
                     return response!;
                 } catch(error: any) {
                     lastError = error;
+                    //console.log(error)
                     return retry();
                 }
             }
@@ -158,14 +191,20 @@ export class Mailer
 
     static async #aquireToken(): Promise<string>
     {
+        console.log("Step 4")
         return this.#aquireTokenMutex.runExclusive(async ()=>{
             if(!this.#msalClient) throw new UnrecoverableError('Trying to login without an application registration');
-
+            console.log("Step 3.1")
             const res = await this.#msalClient.acquireTokenByClientCredential({
                 scopes: ['https://graph.microsoft.com/.default'],
             });
+            console.log("Step 3.2")
+            console.log(res)
             return res?.accessToken!;
         });
+        //
+        //console.log(ret)
+        //return ret
     }
 
 }
